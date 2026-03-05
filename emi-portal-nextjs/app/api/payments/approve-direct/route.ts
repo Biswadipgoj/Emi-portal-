@@ -12,7 +12,10 @@ export async function POST(req: NextRequest) {
   const body = await req.json();
   const { customer_id, emi_ids, mode, notes, total_emi_amount, scheduled_emi_amount, fine_amount, first_emi_charge_amount, total_amount, fine_for_emi_no, fine_due_date } = body;
 
-  if (!customer_id || !emi_ids?.length || !mode) {
+  const hasEmiItems = Array.isArray(emi_ids) && emi_ids.length > 0;
+  const hasAnyCollection = Number(total_emi_amount || 0) > 0 || Number(fine_amount || 0) > 0 || Number(first_emi_charge_amount || 0) > 0;
+
+  if (!customer_id || !mode || !hasAnyCollection) {
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
   }
 
@@ -24,7 +27,9 @@ export async function POST(req: NextRequest) {
   const now = new Date().toISOString();
 
   // Get retailer
-  const { data: emis } = await serviceClient.from('emi_schedule').select('*').in('id', emi_ids).eq('customer_id', customer_id);
+  const { data: emis } = hasEmiItems
+    ? await serviceClient.from('emi_schedule').select('*').in('id', emi_ids).eq('customer_id', customer_id)
+    : { data: [] as Record<string, unknown>[] };
 
   // Create request as already APPROVED
   const { data: request, error } = await serviceClient.from('payment_requests').insert({
@@ -50,21 +55,22 @@ export async function POST(req: NextRequest) {
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
   // Create items
-  const items = (emis || []).map(emi => ({
-    payment_request_id: request.id,
-    emi_schedule_id: emi.id,
-    emi_no: emi.emi_no,
-    amount: emi.amount,
-  }));
-  await serviceClient.from('payment_request_items').insert(items);
+  if (hasEmiItems) {
+    const items = (emis || []).map((emi: any) => ({
+      payment_request_id: request.id,
+      emi_schedule_id: emi.id,
+      emi_no: emi.emi_no,
+      amount: emi.amount,
+    }));
+    await serviceClient.from('payment_request_items').insert(items);
 
-  // Approve EMIs directly
-  await serviceClient.from('emi_schedule').update({
-    status: 'APPROVED',
-    paid_at: now,
-    mode,
-    approved_by: user.id,
-  }).in('id', emi_ids);
+    await serviceClient.from('emi_schedule').update({
+      status: 'APPROVED',
+      paid_at: now,
+      mode,
+      approved_by: user.id,
+    }).in('id', emi_ids);
+  }
 
   // Mark first EMI charge paid if applicable
   if (first_emi_charge_amount > 0) {

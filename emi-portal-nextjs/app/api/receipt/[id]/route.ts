@@ -202,12 +202,15 @@ export async function GET(
 </body>
 </html>`;
 
+  const fileBase = `receipt-${params.id.slice(0, 8).toUpperCase()}`;
+
   return new NextResponse(html, {
     status: 200,
     headers: {
       'Content-Type': 'text/html; charset=utf-8',
-      'Content-Disposition': `attachment; filename="receipt-${params.id.slice(0, 8)}.html"`,
-      'Cache-Control': 'no-store',
+      'Content-Disposition': `attachment; filename="${fileBase}.html"; filename*=UTF-8''${fileBase}.html`,
+      'X-Content-Type-Options': 'nosniff',
+      'Cache-Control': 'no-store, max-age=0',
     },
   });
 }

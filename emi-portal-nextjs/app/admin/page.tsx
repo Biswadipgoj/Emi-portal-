@@ -13,7 +13,7 @@ import PaymentModal from '@/components/PaymentModal';
 import toast from 'react-hot-toast';
 import { addDays, subMonths, format } from 'date-fns';
 
-type Tab = 'search' | 'retailers' | 'reports' | 'import';
+type Tab = 'search' | 'retailers' | 'reports';
 
 interface FilteredEMI {
   id: string;
@@ -142,12 +142,6 @@ export default function AdminDashboard() {
   const [retailerForm, setRetailerForm] = useState({ name: '', username: '', password: '', retail_pin: '', mobile: '' });
   const [fineSettings, setFineSettings] = useState({ default_fine_amount: 450 });
   const [pendingCount, setPendingCount] = useState(0);
-  const [csvImportLoading, setCsvImportLoading] = useState(false);
-  const [csvImportResult, setCsvImportResult] = useState<{
-    total: number; inserted: number; skipped: number; failed: number;
-    skipped_list: { row: number; imei: string; reason: string }[];
-    failed_list: { row: number; imei: string; reason: string }[];
-  } | null>(null);
 
   // Filter state
   const [activeFilter, setActiveFilter] = useState<string | null>(null);
@@ -175,9 +169,18 @@ export default function AdminDashboard() {
     setPendingCount(count || 0);
   }
 
-  async function loadRetailers() {
-    const { data } = await supabase.from('retailers').select('*').order('name');
-    setRetailers(data || []);
+  async function loadRetailers(includeInactive = false) {
+    try {
+      const res = await fetch(`/api/retailers?includeInactive=${includeInactive ? '1' : '0'}`);
+      const json = await res.json();
+      if (!res.ok) {
+        toast.error(json.error || 'Failed to load retailers');
+        return;
+      }
+      setRetailers(json.retailers || []);
+    } catch {
+      toast.error('Failed to load retailers');
+    }
   }
 
   async function loadFineSettings() {
@@ -359,7 +362,6 @@ export default function AdminDashboard() {
             { key: 'search', label: '🔍 Customer Search' },
             { key: 'retailers', label: '🏪 Retailers' },
             { key: 'reports', label: '📊 Reports & Settings' },
-            { key: 'import', label: '📥 Import CSV' },
           ] as const).map((t) => (
             <button
               key={t.key}
@@ -771,125 +773,6 @@ export default function AdminDashboard() {
             </div>
           </div>
         )}
-        {/* ===== IMPORT CSV TAB ===== */}
-        {tab === 'import' && (
-          <div className="space-y-6 animate-fade-in">
-            <div>
-              <h1 className="font-display text-3xl font-bold text-ink">Import Customers (CSV)</h1>
-              <p className="text-ink-muted text-sm mt-1">Upload a CSV file to bulk-add customers. Duplicate IMEIs are skipped.</p>
-            </div>
-
-            <div className="card p-6">
-              <p className="section-header">CSV Format (Required columns)</p>
-              <div className="bg-surface-3 rounded-xl p-4 font-mono text-xs text-ink-muted overflow-x-auto mb-4">
-                customer_name,mobile,imei,purchase_value,purchase_date,emi_amount,emi_tenure,emi_due_day,retailer_username,father_name,aadhaar,address,model_no,box_no,down_payment,first_emi_charge_amount
-              </div>
-              <p className="text-xs text-ink-muted">Required: customer_name, mobile, imei, purchase_value, purchase_date, emi_amount, emi_tenure, emi_due_day, retailer_username</p>
-
-              <div className="mt-4">
-                <label className="form-label">Upload CSV File</label>
-                <input
-                  type="file"
-                  accept=".csv"
-                  className="form-input"
-                  onChange={async (e) => {
-                    const file = e.target.files?.[0];
-                    if (!file) return;
-                    setCsvImportLoading(true);
-                    setCsvImportResult(null);
-                    try {
-                      const text = await file.text();
-                      const lines = text.trim().split('\n');
-                      const headers = lines[0].split(',').map(h => h.trim().replace(/^"/, '').replace(/"$/, ''));
-                      const rows = lines.slice(1).map(line => {
-                        const values = line.split(',').map(v => v.trim().replace(/^"/, '').replace(/"$/, ''));
-                        const row: Record<string, string> = {};
-                        headers.forEach((h, i) => { row[h] = values[i] || ''; });
-                        return row;
-                      }).filter(r => Object.values(r).some(v => v));
-
-                      const res = await fetch('/api/csv-import', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ rows }),
-                      });
-                      const result = await res.json();
-                      if (!res.ok) { toast.error(result.error); return; }
-                      setCsvImportResult(result);
-                      toast.success(`Imported ${result.inserted} of ${result.total} rows`);
-                    } catch (err) {
-                      toast.error('Failed to parse CSV file');
-                      console.error(err);
-                    } finally {
-                      setCsvImportLoading(false);
-                    }
-                  }}
-                />
-              </div>
-
-              {csvImportLoading && (
-                <div className="mt-4 flex items-center gap-3 text-ink-muted">
-                  <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none">
-                    <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" className="opacity-25" />
-                    <path fill="currentColor" className="opacity-75" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                  </svg>
-                  Importing customers…
-                </div>
-              )}
-
-              {csvImportResult && (
-                <div className="mt-6 space-y-4">
-                  <div className="grid grid-cols-4 gap-3">
-                    {[
-                      { label: 'Total Rows', value: csvImportResult.total, color: 'text-ink' },
-                      { label: 'Inserted', value: csvImportResult.inserted, color: 'text-success' },
-                      { label: 'Skipped', value: csvImportResult.skipped, color: 'text-warning' },
-                      { label: 'Failed', value: csvImportResult.failed, color: 'text-danger' },
-                    ].map(item => (
-                      <div key={item.label} className="card p-3 text-center">
-                        <p className={`font-num text-2xl font-bold ${item.color}`}>{item.value}</p>
-                        <p className="text-xs text-ink-muted mt-1">{item.label}</p>
-                      </div>
-                    ))}
-                  </div>
-
-                  {csvImportResult.skipped_list.length > 0 && (
-                    <div>
-                      <p className="text-sm font-semibold text-warning mb-2">Skipped (Duplicate IMEI)</p>
-                      <div className="card overflow-hidden">
-                        <table className="data-table text-xs">
-                          <thead><tr><th>Row</th><th>IMEI</th><th>Reason</th></tr></thead>
-                          <tbody>
-                            {csvImportResult.skipped_list.map((s, i) => (
-                              <tr key={i}><td>{s.row}</td><td className="font-num">{s.imei}</td><td className="text-ink-muted">{s.reason}</td></tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    </div>
-                  )}
-
-                  {csvImportResult.failed_list.length > 0 && (
-                    <div>
-                      <p className="text-sm font-semibold text-danger mb-2">Failed (Validation / DB errors)</p>
-                      <div className="card overflow-hidden">
-                        <table className="data-table text-xs">
-                          <thead><tr><th>Row</th><th>IMEI</th><th>Reason</th></tr></thead>
-                          <tbody>
-                            {csvImportResult.failed_list.map((f, i) => (
-                              <tr key={i}><td>{f.row}</td><td className="font-num">{f.imei}</td><td className="text-danger">{f.reason}</td></tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
       </div>
 
       {/* ===== MODALS ===== */}

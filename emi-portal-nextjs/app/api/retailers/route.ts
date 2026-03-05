@@ -1,6 +1,32 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServiceClient, createClient } from '@/lib/supabase/server';
 
+export async function GET(req: NextRequest) {
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('user_id', user.id)
+    .single();
+
+  if (profile?.role !== 'super_admin') {
+    return NextResponse.json({ error: 'Only super admin can view all retailers' }, { status: 403 });
+  }
+
+  const includeInactive = req.nextUrl.searchParams.get('includeInactive') === '1';
+  const serviceClient = createServiceClient();
+  let query = serviceClient.from('retailers').select('*').order('name', { ascending: true });
+  if (!includeInactive) query = query.eq('is_active', true);
+
+  const { data, error } = await query;
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  return NextResponse.json({ retailers: data || [] });
+}
+
 export async function POST(req: NextRequest) {
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();

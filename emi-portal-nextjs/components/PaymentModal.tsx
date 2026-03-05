@@ -73,8 +73,25 @@ export default function PaymentModal({ customer, emis, breakdown, onClose, onSub
   }, [mode, totalPayable, selectedEmiNo, customer.imei]);
 
   async function handleSubmit() {
-    if (!selectedEmi) { toast.error('Select an EMI to pay'); return; }
+    if (!selectedEmiNo) { toast.error('Select EMI month/number'); return; }
     if (!isAdmin && !retailerPin.trim()) { toast.error('Retailer PIN required'); return; }
+
+    if (emiAmount < 0 || fineAmount < 0 || firstEmiCharge < 0) {
+      toast.error('Collected amount cannot be negative');
+      return;
+    }
+    if (emiAmount > scheduledEmiAmount) {
+      toast.error(`EMI collected amount cannot exceed ${fmt(scheduledEmiAmount)}`);
+      return;
+    }
+    if (fineAmount > scheduledFine) {
+      toast.error(`Fine collected amount cannot exceed ${fmt(scheduledFine)}`);
+      return;
+    }
+    if (totalPayable <= 0) {
+      toast.error('Enter collected EMI and/or fine amount');
+      return;
+    }
 
     setLoading(true);
     try {
@@ -82,13 +99,14 @@ export default function PaymentModal({ customer, emis, breakdown, onClose, onSub
       // fine_for_emi_no = next overdue EMI no (same as selectedEmiNo if it's overdue)
       const fineForEmiNo = fineAmount > 0 ? selectedEmiNo : undefined;
       const fineDueDate = fineAmount > 0 && selectedEmi ? selectedEmi.due_date : undefined;
+      const collectingEmi = emiAmount > 0 && !!selectedEmi;
       const res = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           customer_id: customer.id,
-          emi_ids: [selectedEmi.id],
-          emi_nos: [selectedEmi.emi_no],
+          emi_ids: collectingEmi && selectedEmi ? [selectedEmi.id] : [],
+          emi_nos: collectingEmi && selectedEmi ? [selectedEmi.emi_no] : [],
           mode,
           notes: notes || null,
           retail_pin: isAdmin ? undefined : retailerPin,
