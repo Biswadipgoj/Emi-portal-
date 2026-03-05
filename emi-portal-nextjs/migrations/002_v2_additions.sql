@@ -15,6 +15,8 @@ ALTER TABLE customers ADD COLUMN IF NOT EXISTS customer_photo_url TEXT;
 ALTER TABLE customers ADD COLUMN IF NOT EXISTS aadhaar_front_url TEXT;  -- already exists from v1
 ALTER TABLE customers ADD COLUMN IF NOT EXISTS aadhaar_back_url TEXT;   -- already exists from v1
 ALTER TABLE customers ADD COLUMN IF NOT EXISTS bill_photo_url TEXT;
+ALTER TABLE customers ADD COLUMN IF NOT EXISTS emi_card_photo_url TEXT;
+ALTER TABLE customers          ADD COLUMN IF NOT EXISTS emi_card_photo_url TEXT;
 
 -- Add selected_emi_nos to payment_requests for multi-EMI selection
 ALTER TABLE payment_requests ADD COLUMN IF NOT EXISTS selected_emi_nos INT[];

@@ -16,6 +16,22 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
   }
 
+  const emiCollected = Number(total_emi_amount || 0);
+  const scheduledEmi = Number(scheduled_emi_amount || 0);
+  const fineCollected = Number(fine_amount || 0);
+  const firstChargeCollected = Number(first_emi_charge_amount || 0);
+  const totalCollected = Number(total_amount || 0);
+
+  if (emiCollected < 0 || scheduledEmi < 0 || fineCollected < 0 || firstChargeCollected < 0) {
+    return NextResponse.json({ error: 'Amounts cannot be negative' }, { status: 400 });
+  }
+  if (scheduledEmi > 0 && emiCollected > scheduledEmi) {
+    return NextResponse.json({ error: 'EMI collected amount cannot exceed scheduled EMI' }, { status: 400 });
+  }
+  if (Math.abs((emiCollected + fineCollected + firstChargeCollected) - totalCollected) > 0.01) {
+    return NextResponse.json({ error: 'Total amount mismatch' }, { status: 400 });
+  }
+
   const serviceClient = createServiceClient();
 
   const { data: customer } = await serviceClient.from('customers').select('*, retailers(*)').eq('id', customer_id).single();
@@ -37,7 +53,7 @@ export async function POST(req: NextRequest) {
     scheduled_emi_amount: scheduled_emi_amount || 0,
     fine_amount: fine_amount || 0,
     first_emi_charge_amount: first_emi_charge_amount || 0,
-    total_amount,
+    total_amount: totalCollected,
     notes,
     approved_by: user.id,
     approved_at: now,

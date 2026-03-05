@@ -176,8 +176,13 @@ export default function AdminDashboard() {
   }
 
   async function loadRetailers() {
-    const { data } = await supabase.from('retailers').select('*').order('name');
-    setRetailers(data || []);
+    const res = await fetch('/api/retailers?include_inactive=true');
+    const data = await res.json();
+    if (!res.ok) {
+      toast.error(data.error || 'Failed to load retailers');
+      return;
+    }
+    setRetailers(data.retailers || []);
   }
 
   async function loadFineSettings() {
@@ -897,7 +902,7 @@ export default function AdminDashboard() {
       {showCustomerForm && (
         <CustomerFormModal
           customer={editingCustomer}
-          retailers={retailers}
+          retailers={retailers.filter(r => r.is_active)}
           onClose={() => { setShowCustomerForm(false); setEditingCustomer(null); }}
           onSaved={refreshSelectedCustomer}
           isAdmin={true}

@@ -47,6 +47,7 @@ export interface Customer {
   aadhaar_front_url?: string;
   aadhaar_back_url?: string;
   bill_photo_url?: string;
+  emi_card_photo_url?: string;
   status: 'RUNNING' | 'COMPLETE';
   completion_remark?: string;
   completion_date?: string;
