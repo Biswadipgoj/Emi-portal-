@@ -62,6 +62,7 @@ CREATE TABLE IF NOT EXISTS customers (
   aadhaar_front_url        TEXT,
   aadhaar_back_url         TEXT,
   bill_photo_url           TEXT,
+  emi_card_photo_url       TEXT,
   -- Legacy columns (keep for backwards compat)
   photo_url                TEXT,
   bill_url                 TEXT,
@@ -167,6 +168,7 @@ ALTER TABLE customers          ADD COLUMN IF NOT EXISTS customer_photo_url TEXT;
 ALTER TABLE customers          ADD COLUMN IF NOT EXISTS aadhaar_front_url TEXT;
 ALTER TABLE customers          ADD COLUMN IF NOT EXISTS aadhaar_back_url TEXT;
 ALTER TABLE customers          ADD COLUMN IF NOT EXISTS bill_photo_url TEXT;
+ALTER TABLE customers          ADD COLUMN IF NOT EXISTS emi_card_photo_url TEXT;
 ALTER TABLE payment_requests   ADD COLUMN IF NOT EXISTS selected_emi_nos INT[];
 
 

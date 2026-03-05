@@ -47,6 +47,22 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Incorrect Retailer PIN' }, { status: 401 });
   }
 
+  const emiCollected = Number(total_emi_amount || 0);
+  const scheduledEmi = Number(scheduled_emi_amount || 0);
+  const fineCollected = Number(fine_amount || 0);
+  const firstChargeCollected = Number(first_emi_charge_amount || 0);
+  const totalCollected = Number(total_amount || 0);
+
+  if (emiCollected < 0 || scheduledEmi < 0 || fineCollected < 0 || firstChargeCollected < 0) {
+    return NextResponse.json({ error: 'Amounts cannot be negative' }, { status: 400 });
+  }
+  if (scheduledEmi > 0 && emiCollected > scheduledEmi) {
+    return NextResponse.json({ error: 'EMI collected amount cannot exceed scheduled EMI' }, { status: 400 });
+  }
+  if (Math.abs((emiCollected + fineCollected + firstChargeCollected) - totalCollected) > 0.01) {
+    return NextResponse.json({ error: 'Total amount mismatch' }, { status: 400 });
+  }
+
   // Guard: ensure EMIs are still UNPAID (not already pending/approved)
   const { data: emiCheck } = await serviceClient
     .from('emi_schedule')
@@ -92,7 +108,7 @@ export async function POST(req: NextRequest) {
     payment_request_id: request.id,
     emi_schedule_id,                          // ✅ matches schema column name
     emi_no: emi_nos[i],
-    amount: parseFloat(total_emi_amount) / emi_ids.length,
+    amount: emiCollected / emi_ids.length,
   }));
   const { error: itemsErr } = await serviceClient.from('payment_request_items').insert(items);
   if (itemsErr) {

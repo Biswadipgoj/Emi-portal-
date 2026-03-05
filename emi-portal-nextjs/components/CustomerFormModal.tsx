@@ -40,6 +40,7 @@ const EMPTY = {
   aadhaar_front_url: '',
   aadhaar_back_url: '',
   bill_photo_url: '',
+  emi_card_photo_url: '',
 };
 
 type FormData = typeof EMPTY;
@@ -89,6 +90,7 @@ export default function CustomerFormModal({
         aadhaar_front_url: customer.aadhaar_front_url || '',
         aadhaar_back_url: customer.aadhaar_back_url || '',
         bill_photo_url: customer.bill_photo_url || '',
+        emi_card_photo_url: customer.emi_card_photo_url || '',
       });
     }
   }, [customer]);
@@ -126,7 +128,7 @@ export default function CustomerFormModal({
     if (form.alternate_number_2 && form.alternate_number_2.replace(/\D/g, '').length !== 10)
       errs.alternate_number_2 = 'Alternate number must be 10 digits';
 
-    if (!form.aadhaar || form.aadhaar.replace(/\D/g, '').length !== 12)
+    if (form.aadhaar && form.aadhaar.replace(/\D/g, '').length !== 12)
       errs.aadhaar = 'Aadhaar must be exactly 12 digits';
 
     if (!form.address.trim())
@@ -154,6 +156,9 @@ export default function CustomerFormModal({
     if (!form.emi_due_day || parseInt(form.emi_due_day) < 1 || parseInt(form.emi_due_day) > 28)
       errs.emi_due_day = 'EMI due day must be between 1 and 28';
 
+    if ((!form.disburse_amount || parseFloat(form.disburse_amount) <= 0) && autoDisburse <= 0)
+      errs.disburse_amount = 'Disburse amount is required';
+
     // ── IMAGE tab — only validate format if something was entered ──
     if (form.customer_photo_url && !isValidUrl(form.customer_photo_url))
       errs.customer_photo_url = 'Invalid URL';
@@ -163,6 +168,8 @@ export default function CustomerFormModal({
       errs.aadhaar_back_url = 'Invalid URL';
     if (form.bill_photo_url && !isValidUrl(form.bill_photo_url))
       errs.bill_photo_url = 'Invalid URL';
+    if (form.emi_card_photo_url && !isValidUrl(form.emi_card_photo_url))
+      errs.emi_card_photo_url = 'Invalid URL';
 
     setErrors(errs);
 
@@ -178,7 +185,7 @@ export default function CustomerFormModal({
       'purchase_value', 'purchase_date', 'emi_amount', 'emi_due_day',
     ];
     const imageFields: (keyof FormData)[] = [
-      'customer_photo_url', 'aadhaar_front_url', 'aadhaar_back_url', 'bill_photo_url',
+      'customer_photo_url', 'aadhaar_front_url', 'aadhaar_back_url', 'bill_photo_url', 'emi_card_photo_url',
     ];
 
     const firstErr = Object.keys(errs)[0] as keyof FormData;
@@ -220,7 +227,7 @@ export default function CustomerFormModal({
       box_no: form.box_no.trim() || null,
       purchase_value: pv,
       down_payment: dp,
-      disburse_amount: form.disburse_amount ? parseFloat(form.disburse_amount) : (autoDisburse || null),
+      disburse_amount: form.disburse_amount ? parseFloat(form.disburse_amount) : autoDisburse,
       purchase_date: form.purchase_date,
       emi_due_day: parseInt(form.emi_due_day),
       emi_amount: parseFloat(form.emi_amount),
@@ -231,6 +238,7 @@ export default function CustomerFormModal({
       aadhaar_front_url: form.aadhaar_front_url.trim() || null,
       aadhaar_back_url: form.aadhaar_back_url.trim() || null,
       bill_photo_url: form.bill_photo_url.trim() || null,
+      emi_card_photo_url: form.emi_card_photo_url.trim() || null,
     };
 
     try {
@@ -494,6 +502,8 @@ export default function CustomerFormModal({
                   <ImageURLField label="Aadhaar Card — Back" field="aadhaar_back_url"
                     form={form} set={set} errors={errors} />
                   <ImageURLField label="Bill / Invoice Photo" field="bill_photo_url"
+                    form={form} set={set} errors={errors} />
+                  <ImageURLField label="EMI Card Photo" field="emi_card_photo_url"
                     form={form} set={set} errors={errors} />
                 </div>
               </section>

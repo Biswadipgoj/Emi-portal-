@@ -39,6 +39,7 @@ export default function PaymentModal({ customer, emis, breakdown, onClose, onSub
   const [editedEmiPaid, setEditedEmiPaid] = useState<string>('');
   const [editedFinePaid, setEditedFinePaid] = useState<string>('');
   const [editedFirstEmiChargePaid, setEditedFirstEmiChargePaid] = useState<string>('');
+  const [collectionType, setCollectionType] = useState<'EMI_ONLY' | 'FINE_ONLY' | 'EMI_AND_FINE'>('EMI_AND_FINE');
 
   const selectedEmi = unpaidEmis.find(e => e.emi_no === selectedEmiNo);
   const scheduledEmiAmount = selectedEmi?.amount ?? 0;
@@ -46,8 +47,10 @@ export default function PaymentModal({ customer, emis, breakdown, onClose, onSub
   const scheduledFirstEmiCharge = breakdown.first_emi_charge_due;
 
   // Editable amounts — fall back to scheduled if not overridden
-  const emiAmount = editedEmiPaid !== '' ? Math.max(0, parseFloat(editedEmiPaid) || 0) : scheduledEmiAmount;
-  const fineAmount = editedFinePaid !== '' ? Math.max(0, parseFloat(editedFinePaid) || 0) : scheduledFine;
+  const rawEmiAmount = editedEmiPaid !== '' ? Math.max(0, parseFloat(editedEmiPaid) || 0) : scheduledEmiAmount;
+  const rawFineAmount = editedFinePaid !== '' ? Math.max(0, parseFloat(editedFinePaid) || 0) : scheduledFine;
+  const emiAmount = collectionType === 'FINE_ONLY' ? 0 : Math.min(rawEmiAmount, scheduledEmiAmount);
+  const fineAmount = collectionType === 'EMI_ONLY' ? 0 : Math.min(rawFineAmount, scheduledFine);
   const firstEmiCharge = editedFirstEmiChargePaid !== '' ? Math.max(0, parseFloat(editedFirstEmiChargePaid) || 0) : scheduledFirstEmiCharge;
   const totalPayable = emiAmount + fineAmount + firstEmiCharge;
 
@@ -75,6 +78,13 @@ export default function PaymentModal({ customer, emis, breakdown, onClose, onSub
   async function handleSubmit() {
     if (!selectedEmi) { toast.error('Select an EMI to pay'); return; }
     if (!isAdmin && !retailerPin.trim()) { toast.error('Retailer PIN required'); return; }
+    if (collectionType !== 'FINE_ONLY' && (emiAmount <= 0 || emiAmount > scheduledEmiAmount)) {
+      toast.error(`EMI amount must be between 1 and ${scheduledEmiAmount}`); return;
+    }
+    if (collectionType !== 'EMI_ONLY' && (fineAmount < 0 || fineAmount > scheduledFine)) {
+      toast.error(`Fine amount cannot exceed ${scheduledFine}`); return;
+    }
+    if (totalPayable <= 0) { toast.error('Enter a valid amount'); return; }
 
     setLoading(true);
     try {
@@ -289,6 +299,29 @@ export default function PaymentModal({ customer, emis, breakdown, onClose, onSub
                 })}
               </div>
             )}
+          </div>
+
+          {/* Collection type */}
+          <div>
+            <label className="label">Collection Type</label>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+              {[
+                { key: 'EMI_ONLY', label: 'EMI Only' },
+                { key: 'FINE_ONLY', label: 'Fine Only' },
+                { key: 'EMI_AND_FINE', label: 'EMI + Fine' },
+              ].map(t => (
+                <button
+                  key={t.key}
+                  type="button"
+                  onClick={() => setCollectionType(t.key as 'EMI_ONLY' | 'FINE_ONLY' | 'EMI_AND_FINE')}
+                  className={`py-2.5 rounded-xl border-2 text-sm font-semibold transition-all ${
+                    collectionType === t.key ? 'border-brand-400 bg-brand-50 text-brand-700' : 'border-surface-4 text-ink-muted hover:border-brand-300'
+                  }`}
+                >
+                  {t.label}
+                </button>
+              ))}
+            </div>
           </div>
 
           {/* Mode selector */}
