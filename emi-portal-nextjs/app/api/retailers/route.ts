@@ -1,24 +1,28 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServiceClient, createClient } from '@/lib/supabase/server';
 
-export async function GET(req: NextRequest) {
+async function ensureSuperAdmin() {
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+  if (!user) return { error: NextResponse.json({ error: 'Not authenticated' }, { status: 401 }) };
 
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('role')
-    .eq('user_id', user.id)
-    .single();
-
+  const { data: profile } = await supabase.from('profiles').select('role').eq('user_id', user.id).single();
   if (profile?.role !== 'super_admin') {
-    return NextResponse.json({ error: 'Only super admin can view all retailers' }, { status: 403 });
+    return { error: NextResponse.json({ error: 'Forbidden' }, { status: 403 }) };
   }
 
-  const includeInactive = req.nextUrl.searchParams.get('includeInactive') === '1';
+  return { user };
+}
+
+export async function GET(req: NextRequest) {
+  const auth = await ensureSuperAdmin();
+  if (auth.error) return auth.error;
+
+  const { searchParams } = new URL(req.url);
+  const includeInactive = searchParams.get('include_inactive') === 'true';
+
   const serviceClient = createServiceClient();
-  let query = serviceClient.from('retailers').select('*').order('name', { ascending: true });
+  let query = serviceClient.from('retailers').select('*').order('name');
   if (!includeInactive) query = query.eq('is_active', true);
 
   const { data, error } = await query;
@@ -26,11 +30,9 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.json({ retailers: data || [] });
 }
-
 export async function POST(req: NextRequest) {
-  const supabase = createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+  const auth = await ensureSuperAdmin();
+  if (auth.error) return auth.error;
 
   const body = await req.json();
   const { name, username, password, retail_pin, mobile } = body;
@@ -79,9 +81,8 @@ export async function POST(req: NextRequest) {
 }
 
 export async function PATCH(req: NextRequest) {
-  const supabase = createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+  const auth = await ensureSuperAdmin();
+  if (auth.error) return auth.error;
 
   const body = await req.json();
   const { id, name, password, retail_pin, is_active, mobile } = body;
@@ -113,6 +114,9 @@ export async function PATCH(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
+  const auth = await ensureSuperAdmin();
+  if (auth.error) return auth.error;
+
   const serviceClient = createServiceClient();
   const { searchParams } = new URL(req.url);
   const id = searchParams.get('id');

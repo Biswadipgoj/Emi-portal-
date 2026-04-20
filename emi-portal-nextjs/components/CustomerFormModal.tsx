@@ -129,7 +129,7 @@ export default function CustomerFormModal({
       errs.alternate_number_2 = 'Alternate number must be 10 digits';
 
     if (form.aadhaar && form.aadhaar.replace(/\D/g, '').length !== 12)
-      errs.aadhaar = 'Aadhaar must be exactly 12 digits if provided';
+      errs.aadhaar = 'Aadhaar must be exactly 12 digits';
 
     if (!form.address.trim())
       errs.address = 'Address is required';
@@ -155,6 +155,9 @@ export default function CustomerFormModal({
 
     if (!form.emi_due_day || parseInt(form.emi_due_day) < 1 || parseInt(form.emi_due_day) > 28)
       errs.emi_due_day = 'EMI due day must be between 1 and 28';
+
+    if ((!form.disburse_amount || parseFloat(form.disburse_amount) <= 0) && autoDisburse <= 0)
+      errs.disburse_amount = 'Disburse amount is required';
 
     // ── IMAGE tab — only validate format if something was entered ──
     if (form.customer_photo_url && !isValidUrl(form.customer_photo_url))

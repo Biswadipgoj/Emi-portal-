@@ -44,6 +44,8 @@ ALTER TABLE customers ADD COLUMN IF NOT EXISTS customer_photo_url TEXT;
 ALTER TABLE customers ADD COLUMN IF NOT EXISTS aadhaar_front_url TEXT;
 ALTER TABLE customers ADD COLUMN IF NOT EXISTS aadhaar_back_url TEXT;
 ALTER TABLE customers ADD COLUMN IF NOT EXISTS bill_photo_url TEXT;
+ALTER TABLE customers ADD COLUMN IF NOT EXISTS emi_card_photo_url TEXT;
+ALTER TABLE customers          ADD COLUMN IF NOT EXISTS emi_card_photo_url TEXT;
 
 -- ============================================================
 -- 3. Add extra metadata columns to payment_requests

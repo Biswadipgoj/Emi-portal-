@@ -50,13 +50,28 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Incorrect Retailer PIN' }, { status: 401 });
   }
 
-  if (hasEmiItems) {
-    // Guard: ensure EMIs are still UNPAID (not already pending/approved)
-    const { data: emiCheck } = await serviceClient
-      .from('emi_schedule')
-      .select('id, status')
-      .in('id', emi_ids)
-      .eq('customer_id', customer_id);
+  const emiCollected = Number(total_emi_amount || 0);
+  const scheduledEmi = Number(scheduled_emi_amount || 0);
+  const fineCollected = Number(fine_amount || 0);
+  const firstChargeCollected = Number(first_emi_charge_amount || 0);
+  const totalCollected = Number(total_amount || 0);
+
+  if (emiCollected < 0 || scheduledEmi < 0 || fineCollected < 0 || firstChargeCollected < 0) {
+    return NextResponse.json({ error: 'Amounts cannot be negative' }, { status: 400 });
+  }
+  if (scheduledEmi > 0 && emiCollected > scheduledEmi) {
+    return NextResponse.json({ error: 'EMI collected amount cannot exceed scheduled EMI' }, { status: 400 });
+  }
+  if (Math.abs((emiCollected + fineCollected + firstChargeCollected) - totalCollected) > 0.01) {
+    return NextResponse.json({ error: 'Total amount mismatch' }, { status: 400 });
+  }
+
+  // Guard: ensure EMIs are still UNPAID (not already pending/approved)
+  const { data: emiCheck } = await serviceClient
+    .from('emi_schedule')
+    .select('id, status')
+    .in('id', emi_ids)
+    .eq('customer_id', customer_id);
 
     const notUnpaid = (emiCheck || []).filter(e => e.status !== 'UNPAID');
     if (notUnpaid.length > 0) {
@@ -93,19 +108,19 @@ export async function POST(req: NextRequest) {
   }
 
   // Insert payment_request_items using correct column name: emi_schedule_id
-  if (hasEmiItems) {
-    const items = emi_ids.map((emi_schedule_id: string, i: number) => ({
-      payment_request_id: request.id,
-      emi_schedule_id,
-      emi_no: emi_nos[i],
-      amount: parseFloat(total_emi_amount) / emi_ids.length,
-    }));
-    const { error: itemsErr } = await serviceClient.from('payment_request_items').insert(items);
-    if (itemsErr) {
-      console.error('Failed to insert payment_request_items:', itemsErr);
-      await serviceClient.from('payment_requests').delete().eq('id', request.id);
-      return NextResponse.json({ error: 'Failed to record EMI items' }, { status: 500 });
-    }
+  const items = emi_ids.map((emi_schedule_id: string, i: number) => ({
+    payment_request_id: request.id,
+    emi_schedule_id,                          // ✅ matches schema column name
+    emi_no: emi_nos[i],
+    amount: emiCollected / emi_ids.length,
+  }));
+  const { error: itemsErr } = await serviceClient.from('payment_request_items').insert(items);
+  if (itemsErr) {
+    console.error('Failed to insert payment_request_items:', itemsErr);
+    // Roll back the request
+    await serviceClient.from('payment_requests').delete().eq('id', request.id);
+    return NextResponse.json({ error: 'Failed to record EMI items' }, { status: 500 });
+  }
 
     await serviceClient
       .from('emi_schedule')

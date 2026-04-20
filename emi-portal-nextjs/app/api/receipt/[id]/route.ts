@@ -28,7 +28,7 @@ function fmtDateShort(d: string) {
 }
 
 export async function GET(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: { id: string } }
 ) {
   const serviceClient = createServiceClient();
@@ -202,15 +202,17 @@ export async function GET(
 </body>
 </html>`;
 
-  const fileBase = `receipt-${params.id.slice(0, 8).toUpperCase()}`;
+  const download = req.nextUrl.searchParams.get('download') === '1';
+  const filename = `receipt-${params.id.slice(0, 8).toUpperCase()}.html`;
 
   return new NextResponse(html, {
     status: 200,
     headers: {
       'Content-Type': 'text/html; charset=utf-8',
-      'Content-Disposition': `attachment; filename="${fileBase}.html"; filename*=UTF-8''${fileBase}.html`,
+      'Content-Disposition': `${download ? 'attachment' : 'inline'}; filename="${filename}"`,
+      'Content-Transfer-Encoding': 'binary',
       'X-Content-Type-Options': 'nosniff',
-      'Cache-Control': 'no-store, max-age=0',
+      'Cache-Control': 'no-store',
     },
   });
 }

@@ -51,8 +51,8 @@ export default async function ReceiptPage({ params }: { params: { id: string } }
           <PrintButton />
           {/* Download receipt via API — works on mobile too */}
           <a
-            href={`/api/receipt/${params.id}`}
-            download={`receipt-${params.id.slice(0, 8)}.html`}
+            href={`/api/receipt/${params.id}?download=1`}
+            download={`receipt-${params.id.slice(0, 8).toUpperCase()}.html`}
             style={{ padding: '0.625rem 1.25rem', background: '#1d4ed8', color: 'white', border: 'none', borderRadius: '0.75rem', fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '0.5rem', textDecoration: 'none' }}
           >
             ⬇️ Download Receipt

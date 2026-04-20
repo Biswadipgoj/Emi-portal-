@@ -169,18 +169,14 @@ export default function AdminDashboard() {
     setPendingCount(count || 0);
   }
 
-  async function loadRetailers(includeInactive = false) {
-    try {
-      const res = await fetch(`/api/retailers?includeInactive=${includeInactive ? '1' : '0'}`);
-      const json = await res.json();
-      if (!res.ok) {
-        toast.error(json.error || 'Failed to load retailers');
-        return;
-      }
-      setRetailers(json.retailers || []);
-    } catch {
-      toast.error('Failed to load retailers');
+  async function loadRetailers() {
+    const res = await fetch('/api/retailers?include_inactive=true');
+    const data = await res.json();
+    if (!res.ok) {
+      toast.error(data.error || 'Failed to load retailers');
+      return;
     }
+    setRetailers(data.retailers || []);
   }
 
   async function loadFineSettings() {
@@ -780,7 +776,7 @@ export default function AdminDashboard() {
       {showCustomerForm && (
         <CustomerFormModal
           customer={editingCustomer}
-          retailers={retailers}
+          retailers={retailers.filter(r => r.is_active)}
           onClose={() => { setShowCustomerForm(false); setEditingCustomer(null); }}
           onSaved={refreshSelectedCustomer}
           isAdmin={true}
