@@ -20,7 +20,10 @@ export async function POST(req: NextRequest) {
     collected_by_role,
   } = body;
 
-  if (!customer_id || !emi_ids?.length || !mode) {
+  const hasEmiItems = Array.isArray(emi_ids) && emi_ids.length > 0;
+  const hasAnyCollection = Number(total_emi_amount || 0) > 0 || Number(fine_amount || 0) > 0 || Number(first_emi_charge_amount || 0) > 0;
+
+  if (!customer_id || !mode || !hasAnyCollection) {
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
   }
   if (!retail_pin?.trim()) {
@@ -70,9 +73,10 @@ export async function POST(req: NextRequest) {
     .in('id', emi_ids)
     .eq('customer_id', customer_id);
 
-  const notUnpaid = (emiCheck || []).filter(e => e.status !== 'UNPAID');
-  if (notUnpaid.length > 0) {
-    return NextResponse.json({ error: 'One or more EMIs are already pending or paid' }, { status: 409 });
+    const notUnpaid = (emiCheck || []).filter(e => e.status !== 'UNPAID');
+    if (notUnpaid.length > 0) {
+      return NextResponse.json({ error: 'One or more EMIs are already pending or paid' }, { status: 409 });
+    }
   }
 
   // Create payment request
@@ -118,11 +122,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Failed to record EMI items' }, { status: 500 });
   }
 
-  // Mark EMIs as PENDING_APPROVAL
-  await serviceClient
-    .from('emi_schedule')
-    .update({ status: 'PENDING_APPROVAL' })
-    .in('id', emi_ids);
+    await serviceClient
+      .from('emi_schedule')
+      .update({ status: 'PENDING_APPROVAL' })
+      .in('id', emi_ids);
+  }
 
   return NextResponse.json({ success: true, request_id: request.id });
 }

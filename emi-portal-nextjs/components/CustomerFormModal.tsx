@@ -198,6 +198,11 @@ export default function CustomerFormModal({
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (!customer && !isAdmin) {
+      toast.error('Only super admin can create customers');
+      return;
+    }
+
     const { ok, switchTo, firstError } = validate();
     if (!ok) {
       if (switchTo && switchTo !== tab) {
@@ -355,7 +360,7 @@ export default function CustomerFormModal({
                     <F label="Alternate Number 2" field="alternate_number_2"
                        form={form} set={set} errors={errors} placeholder="Optional — 10 digits" maxLen={10} inputMode="numeric" />
                     <F label="Aadhaar Number" field="aadhaar"
-                       form={form} set={set} errors={errors} required placeholder="12 digits" maxLen={12} inputMode="numeric" />
+                       form={form} set={set} errors={errors} placeholder="Optional — 12 digits" maxLen={12} inputMode="numeric" />
                     <F label="Voter ID" field="voter_id"
                        form={form} set={set} errors={errors} placeholder="Optional" />
                   </div>
