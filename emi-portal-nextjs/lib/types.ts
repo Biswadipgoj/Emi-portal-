@@ -47,6 +47,7 @@ export interface Customer {
   aadhaar_front_url?: string;
   aadhaar_back_url?: string;
   bill_photo_url?: string;
+  emi_card_photo_url?: string;
   status: 'RUNNING' | 'COMPLETE';
   completion_remark?: string;
   completion_date?: string;
@@ -86,6 +87,7 @@ export interface PaymentRequest {
   first_emi_charge_amount: number;
   total_amount: number;
   notes?: string;
+  upi_utr?: string;
   rejection_reason?: string;
   approved_by?: string;
   approved_at?: string;

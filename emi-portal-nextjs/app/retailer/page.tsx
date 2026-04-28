@@ -267,7 +267,10 @@ export default function RetailerDashboard() {
                               <p className="text-xs text-ink-muted font-num">{cust?.imei}</p>
                             </td>
                             <td><span className="font-num font-semibold">{fmt(r.total_amount)}</span></td>
-                            <td><span className={`text-xs font-semibold ${r.mode === 'UPI' ? 'text-info' : 'text-success'}`}>{r.mode}</span></td>
+                            <td>
+                              <span className={`text-xs font-semibold ${r.mode === 'UPI' ? 'text-info' : 'text-success'}`}>{r.mode}</span>
+                              {r.mode === 'UPI' && r.upi_utr && <p className="font-mono text-[10px] text-info mt-0.5">UTR: {r.upi_utr}</p>}
+                            </td>
                             <td>
                               {r.status === 'PENDING' && <span className="badge-pending">Pending</span>}
                               {r.status === 'APPROVED' && <span className="badge-approved">Approved</span>}

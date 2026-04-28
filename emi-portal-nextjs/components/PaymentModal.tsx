@@ -31,6 +31,7 @@ export default function PaymentModal({ customer, emis, breakdown, onClose, onSub
   const [mode, setMode] = useState<'CASH' | 'UPI'>('CASH');
   const [retailerPin, setRetailerPin] = useState('');
   const [notes, setNotes] = useState('');
+  const [upiUtr, setUpiUtr] = useState('');
   const [loading, setLoading] = useState(false);
   const [qrDataUrl, setQrDataUrl] = useState('');
   const [showReceipt, setShowReceipt] = useState(false);
@@ -73,8 +74,26 @@ export default function PaymentModal({ customer, emis, breakdown, onClose, onSub
   }, [mode, totalPayable, selectedEmiNo, customer.imei]);
 
   async function handleSubmit() {
-    if (!selectedEmi) { toast.error('Select an EMI to pay'); return; }
+    if (!selectedEmiNo) { toast.error('Select EMI month/number'); return; }
     if (!isAdmin && !retailerPin.trim()) { toast.error('Retailer PIN required'); return; }
+    if (mode === 'UPI' && !upiUtr.trim()) { toast.error('UPI UTR is required for UPI payments'); return; }
+
+    if (emiAmount < 0 || fineAmount < 0 || firstEmiCharge < 0) {
+      toast.error('Collected amount cannot be negative');
+      return;
+    }
+    if (emiAmount > scheduledEmiAmount) {
+      toast.error(`EMI collected amount cannot exceed ${fmt(scheduledEmiAmount)}`);
+      return;
+    }
+    if (fineAmount > scheduledFine) {
+      toast.error(`Fine collected amount cannot exceed ${fmt(scheduledFine)}`);
+      return;
+    }
+    if (totalPayable <= 0) {
+      toast.error('Enter collected EMI and/or fine amount');
+      return;
+    }
 
     setLoading(true);
     try {
@@ -82,13 +101,14 @@ export default function PaymentModal({ customer, emis, breakdown, onClose, onSub
       // fine_for_emi_no = next overdue EMI no (same as selectedEmiNo if it's overdue)
       const fineForEmiNo = fineAmount > 0 ? selectedEmiNo : undefined;
       const fineDueDate = fineAmount > 0 && selectedEmi ? selectedEmi.due_date : undefined;
+      const collectingEmi = emiAmount > 0 && !!selectedEmi;
       const res = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           customer_id: customer.id,
-          emi_ids: [selectedEmi.id],
-          emi_nos: [selectedEmi.emi_no],
+          emi_ids: collectingEmi && selectedEmi ? [selectedEmi.id] : [],
+          emi_nos: collectingEmi && selectedEmi ? [selectedEmi.emi_no] : [],
           mode,
           notes: notes || null,
           retail_pin: isAdmin ? undefined : retailerPin,
@@ -100,6 +120,7 @@ export default function PaymentModal({ customer, emis, breakdown, onClose, onSub
           fine_for_emi_no: fineForEmiNo,
           fine_due_date: fineDueDate,
           collected_by_role: isAdmin ? 'admin' : 'retailer',
+          upi_utr: mode === 'UPI' ? upiUtr.trim() : null,
         }),
       });
       const data = await res.json();
@@ -342,6 +363,22 @@ export default function PaymentModal({ customer, emis, breakdown, onClose, onSub
               )}
             </div>
           )}
+
+          {mode === 'UPI' && (
+            <div>
+              <label className="label">UPI UTR / Reference *</label>
+              <input
+                type="text"
+                value={upiUtr}
+                onChange={e => setUpiUtr(e.target.value.toUpperCase())}
+                placeholder="Enter UTR / txn reference"
+                className="input"
+                maxLength={30}
+                autoComplete="off"
+              />
+            </div>
+          )}
+
 
           {/* Notes */}
           <div>

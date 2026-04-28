@@ -182,9 +182,11 @@ export async function GET(
 
       <div class="section-title">Transaction</div>
       <div class="kv"><span class="kv-label">Payment Mode</span><span class="kv-value bold" style="color:${request.mode === 'UPI' ? '#1d4ed8' : '#16a34a'};">${request.mode}</span></div>
+      ${request.mode === 'UPI' && request.upi_utr ? `<div class="kv"><span class="kv-label">UPI UTR</span><span class="kv-value mono" style="font-size:0.72rem;">${request.upi_utr}</span></div>` : ''}
       <div class="kv"><span class="kv-label">Date & Time</span><span class="kv-value mono" style="font-size:0.72rem;">${fmtDate(request.created_at)}</span></div>
       <div class="kv"><span class="kv-label">Status</span><span class="kv-value bold" style="color:${statusColor};">${statusLabel}</span></div>
       ${request.approved_at ? `<div class="kv"><span class="kv-label">Approved</span><span class="kv-value mono" style="font-size:0.72rem;">${fmtDate(request.approved_at)}</span></div>` : ''}
+      ${fineAmount > 0 ? `<div class="kv"><span class="kv-label">Fine Paid On</span><span class="kv-value mono" style="font-size:0.72rem;">${fmtDate(request.created_at)} (${request.mode})</span></div>` : ''}
 
       ${nextEmiDueDate
         ? `<div class="next-emi"><p>📅 Next EMI Due</p><span>${fmtDateShort(nextEmiDueDate)}</span></div>`
@@ -202,12 +204,15 @@ export async function GET(
 </body>
 </html>`;
 
+  const fileBase = `receipt-${params.id.slice(0, 8).toUpperCase()}`;
+
   return new NextResponse(html, {
     status: 200,
     headers: {
       'Content-Type': 'text/html; charset=utf-8',
-      'Content-Disposition': `attachment; filename="receipt-${params.id.slice(0, 8)}.html"`,
-      'Cache-Control': 'no-store',
+      'Content-Disposition': `attachment; filename="${fileBase}.html"; filename*=UTF-8''${fileBase}.html`,
+      'X-Content-Type-Options': 'nosniff',
+      'Cache-Control': 'no-store, max-age=0',
     },
   });
 }

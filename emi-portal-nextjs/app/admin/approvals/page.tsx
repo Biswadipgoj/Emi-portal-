@@ -297,10 +297,12 @@ export default function ApprovalsPage() {
                   </div>
 
                   {/* Mode + notes */}
-                  <div className="flex items-center gap-2 text-xs text-ink-muted mb-4">
+                  <div className="flex flex-wrap items-center gap-2 text-xs text-ink-muted mb-4">
                     <span className={`font-bold ${req.mode === 'UPI' ? 'text-info' : 'text-success'}`}>
                       {req.mode}
                     </span>
+                    {req.upi_utr && req.mode === 'UPI' && <span className="font-mono text-info">UTR: {req.upi_utr}</span>}
+                    {(req.fine_amount ?? 0) > 0 && <span>· Fine paid on {format(new Date(req.created_at), 'd MMM yyyy, h:mm a')} via {req.mode}</span>}
                     {req.notes && <span>· {req.notes}</span>}
                   </div>
 
